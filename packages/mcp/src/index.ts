@@ -195,6 +195,35 @@ This tool is versatile and can be used before completing various tasks to retrie
                         }
                     },
                     {
+                        name: "search_unity_knowledge",
+                        description: `Semantic search of the Unity 6 best-practices knowledge base (BP-<domain>-NNN entries).
+
+CALL THIS BEFORE writing any Unity C# code. Returns citation-backed practices with rationale,
+Unity version, and source URL. Do not rely on training-time Unity knowledge — retrieve it here.
+
+Covers: AssetBundles, UGUI, Animation, DOTS/ECS, MonoBehaviours, Memory, Performance,
+GPU, Shaders, Serialization, Editor, Async, Physics, UI/UX.
+
+If the knowledge base is not indexed, the tool returns a clear error — run index_codebase
+on the UNITY_KNOWLEDGE_ROOT path first (see Knowledge/INDEX.md for ignorePatterns).`,
+                        inputSchema: {
+                            type: "object",
+                            properties: {
+                                query: {
+                                    type: "string",
+                                    description: "Natural language query — e.g. 'avoid GC in Update', 'canvas rebuild cost', 'pooling GameObjects', 'DOTS job dependencies'"
+                                },
+                                limit: {
+                                    type: "number",
+                                    description: "Max results to return (default 5, max 20)",
+                                    default: 5,
+                                    maximum: 20
+                                }
+                            },
+                            required: ["query"]
+                        }
+                    },
+                    {
                         name: "clear_index",
                         description: `Clear the search index. IMPORTANT: You MUST provide an absolute path.`,
                         inputSchema: {
@@ -235,6 +264,16 @@ This tool is versatile and can be used before completing various tasks to retrie
                     return await this.toolHandlers.handleIndexCodebase(args);
                 case "search_code":
                     return await this.toolHandlers.handleSearchCode(args);
+                case "search_unity_knowledge": {
+                    const knowledgeRoot = process.env.UNITY_KNOWLEDGE_ROOT
+                        ?? "C:\\Fran\\_Unity\\unity-workflow-optimization\\Knowledge";
+                    const { query, limit } = (args ?? {}) as { query: string; limit?: number };
+                    return await this.toolHandlers.handleSearchCode({
+                        path: knowledgeRoot,
+                        query,
+                        limit: limit ?? 5
+                    });
+                }
                 case "clear_index":
                     return await this.toolHandlers.handleClearIndex(args);
                 case "get_indexing_status":
