@@ -1,0 +1,38 @@
+# Local override (not upstream) — network isolation + security version bumps + restart policy.
+#
+# Networks: etcd + minio hold the index data and have no published ports -> internal-only (no egress).
+# milvus + attu publish host ports (19530 / 8000), so on Docker Desktop they must be on a normal
+# bridge for the port to work; edge listed first so it's the default route.
+#
+# Image pins: bumped to match the current official Milvus standalone compose (etcd v3.5.25,
+# minio 2024-05-28 — both fix stale app-layer CVEs; legacy MINIO_ACCESS_KEY/SECRET_KEY still work).
+# milvus kept on :latest (STABLE) — deliberately NOT v3.0-beta (master), which would risk the
+# claude-context v2.x client. attu bumped to latest (UI only; low-stakes).
+#
+# restart: unless-stopped — base compose has no restart policy, so the stack didn't auto-start on
+# reboot. This makes claude-context's Milvus come back automatically like the observability stack.
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.25
+    restart: unless-stopped
+    networks: [cc_internal]
+  minio:
+    image: minio/minio:RELEASE.2024-05-28T17-19-04Z
+    restart: unless-stopped
+    networks: [cc_internal]
+  milvus:
+    image: milvusdb/milvus:latest
+    restart: unless-stopped
+    networks: [cc_edge, cc_internal]
+  attu:
+    image: zilliz/attu:latest
+    restart: unless-stopped
+    environment:
+      HOSTNAME: "0.0.0.0"   # multi-homed Node app: bind all interfaces so :8000 survives reboot
+    networks: [cc_edge, cc_internal]
+
+networks:
+  cc_internal:
+    internal: true
+  cc_edge:
+    driver: bridge
